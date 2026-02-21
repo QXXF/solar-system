@@ -202,12 +202,13 @@ void main() {
 /* ══════════════════════════════════════════════════════════════
    ANELLO SATURNO – Iconico, multi-banda, luminoso
    ══════════════════════════════════════════════════════════════
-   Divisione di Cassini (gap scuro a ~70% del raggio).
-   Anello B (interno, più luminoso), anello A (esterno, più tenuo).
-   Trasparenza variabile → look realistico.
+   Gli anelli appaiono come bande concentriche di ghiaccio: avorio/bianco sporco
+   con sfumature beige e grigio pallido. Superficie granulare (milioni di frammenti).
+   Divisioni evidenti (Cassini, Encke). Lato illuminato argenteo-brillante,
+   lato ombra opaco e freddo con traslucidità ai bordi rarefatti.
 */
 function createSaturnRing(innerR, outerR) {
-    const geo = new THREE.RingGeometry(innerR, outerR, 128, 1);
+    const geo = new THREE.RingGeometry(innerR, outerR, 192, 1);
     const pos = geo.attributes.position, uv = geo.attributes.uv;
     for (let i = 0; i < uv.count; i++) {
         const x = pos.getX(i), z = pos.getZ(i);
@@ -241,67 +242,156 @@ function createSaturnRing(innerR, outerR) {
             varying vec3 vWorldPos;
             varying vec3 vWorldNormal;
 
+            // Hash per effetto granulare (frammenti di ghiaccio)
+            float hash(vec2 p) {
+                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+            }
+
+            // Noise value morbido
+            float vnoise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                float a = hash(i);
+                float b = hash(i + vec2(1.0, 0.0));
+                float c = hash(i + vec2(0.0, 1.0));
+                float d = hash(i + vec2(1.0, 1.0));
+                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+            }
+
             void main() {
                 float t = clamp(vUv.x, 0.0, 1.0);
 
-                // ── Colore base con gradiente radiale morbido ──
-                vec3 innerCol = vec3(0.90, 0.82, 0.65);  // B ring crema caldo
-                vec3 midCol   = vec3(0.82, 0.72, 0.55);  // transizione
-                vec3 outerCol = vec3(0.65, 0.55, 0.42);  // A ring più freddo
-                vec3 col;
-                if (t < 0.5) {
-                    col = mix(innerCol, midCol, t * 2.0);
-                } else {
-                    col = mix(midCol, outerCol, (t - 0.5) * 2.0);
-                }
+                // ═══════════════════════════════════════════
+                // COLORE BASE – avorio ghiacciato / bianco sporco
+                // ═══════════════════════════════════════════
+                vec3 ivory     = vec3(0.92, 0.90, 0.85);
+                vec3 beige     = vec3(0.88, 0.84, 0.78);
+                vec3 paleGray  = vec3(0.78, 0.77, 0.75);
 
-                // ── Bande concentriche morbide (no artefatti) ──
-                float b1 = smoothstep(0.3, 0.5, sin(t * 40.0)) * 0.12;
-                float b2 = smoothstep(0.3, 0.5, sin(t * 80.0 + 1.0)) * 0.06;
-                col *= 1.0 - b1 - b2;
+                // Gradiente radiale: interno più luminoso, esterno più grigio
+                vec3 col = mix(ivory, beige, smoothstep(0.0, 0.5, t));
+                col = mix(col, paleGray, smoothstep(0.5, 1.0, t));
 
-                // ── Divisione di Cassini ──
-                float cassiniCenter = 0.62;
-                float cassiniWidth  = 0.03;
-                float cassini = smoothstep(cassiniCenter - cassiniWidth, cassiniCenter - cassiniWidth * 0.3, t)
-                              * (1.0 - smoothstep(cassiniCenter + cassiniWidth * 0.3, cassiniCenter + cassiniWidth, t));
-                float alpha = 1.0 - cassini * 0.9;
+                // ═══════════════════════════════════════════
+                // GRANULARITÀ – frammenti di ghiaccio
+                // ═══════════════════════════════════════════
+                // Angolo attorno all'anello per variazione 2D
+                vec2 worldXZ = vWorldPos.xz;
+                float angle = atan(worldXZ.y, worldXZ.x);
 
-                // ── Encke gap sottile ──
-                float encke = smoothstep(0.82, 0.83, t) * (1.0 - smoothstep(0.84, 0.85, t));
-                alpha *= 1.0 - encke * 0.6;
+                // Rumore ad alta frequenza per grana dei cristalli
+                float grain = vnoise(vec2(t * 300.0, angle * 50.0)) * 0.08;
+                float fineGrain = vnoise(vec2(t * 800.0, angle * 120.0)) * 0.04;
+                col += (grain + fineGrain - 0.06); // centrato su zero
 
-                // ── Sfuma ai bordi ──
-                alpha *= smoothstep(0.0, 0.06, t);
-                alpha *= 1.0 - smoothstep(0.94, 1.0, t);
+                // Sparkle occasionale (riflesso di particella)
+                float sparkle = pow(hash(vec2(t * 500.0, angle * 80.0)), 12.0) * 0.3;
+                col += sparkle;
 
-                // ── Densità variabile (B ring più denso di A ring) ──
-                float density = mix(0.85, 0.45, smoothstep(0.0, 1.0, t));
-                alpha *= density;
+                // ═══════════════════════════════════════════
+                // PROFILO DENSITÀ – bande realistiche
+                // ═══════════════════════════════════════════
+                // Struttura degli anelli (da interno a esterno):
+                // D ring (0.0-0.08): molto tenue
+                // C ring (0.08-0.25): semi-trasparente
+                // B ring (0.25-0.55): il più denso e luminoso
+                // Cassini Division (0.55-0.62): gap quasi vuoto
+                // A ring (0.62-0.88): medio-denso
+                // Encke Gap (0.78-0.80): sottile gap
+                // F ring (0.93-0.97): stretto e luminoso
+                // Oltre: vuoto
 
-                // ── Illuminazione solare ──
+                float density = 0.0;
+
+                // D ring
+                density += smoothstep(0.0, 0.03, t) * 0.12 * (1.0 - smoothstep(0.06, 0.08, t));
+
+                // C ring 
+                float cRing = smoothstep(0.08, 0.10, t) * (1.0 - smoothstep(0.23, 0.25, t));
+                density += cRing * 0.35;
+                // Ringlets dentro C ring
+                density += cRing * sin(t * 180.0) * 0.08;
+
+                // B ring (il più denso)
+                float bRing = smoothstep(0.25, 0.27, t) * (1.0 - smoothstep(0.53, 0.55, t));
+                density += bRing * 0.9;
+                // Variazioni di densità dentro B ring
+                density += bRing * sin(t * 60.0) * 0.05;
+                density += bRing * sin(t * 120.0 + 0.7) * 0.03;
+
+                // Cassini Division
+                float cassini = smoothstep(0.55, 0.56, t) * (1.0 - smoothstep(0.61, 0.62, t));
+                density *= (1.0 - cassini * 0.92);
+
+                // A ring
+                float aRing = smoothstep(0.62, 0.64, t) * (1.0 - smoothstep(0.86, 0.88, t));
+                density += aRing * 0.55;
+                density += aRing * sin(t * 90.0) * 0.04;
+
+                // Encke Gap
+                float encke = smoothstep(0.78, 0.785, t) * (1.0 - smoothstep(0.795, 0.80, t));
+                density *= (1.0 - encke * 0.7);
+
+                // F ring (stretto, brillante)
+                float fRing = smoothstep(0.93, 0.94, t) * (1.0 - smoothstep(0.96, 0.97, t));
+                density += fRing * 0.5;
+
+                // Sfuma bordi estremi
+                density *= smoothstep(0.0, 0.02, t);
+                density *= 1.0 - smoothstep(0.97, 1.0, t);
+
+                float alpha = clamp(density, 0.0, 1.0);
+
+                // ═══════════════════════════════════════════
+                // ILLUMINAZIONE SOLARE
+                // ═══════════════════════════════════════════
                 vec3 lightDir = normalize(uSunPos - vWorldPos);
-                float NdotL = abs(dot(vWorldNormal, lightDir));
+                vec3 viewDir = normalize(cameraPosition - vWorldPos);
+                float NdotL = dot(vWorldNormal, lightDir);
+                float absNdotL = abs(NdotL);
 
-                // Forward scattering (luce che attraversa l'anello)
-                float forwardScatter = pow(max(dot(normalize(vWorldPos - uSunPos), normalize(vWorldPos - cameraPosition)), 0.0), 3.0) * 0.3;
+                // Lato illuminato: brillante, quasi argenteo
+                vec3 litColor = col * 1.15 + vec3(0.06, 0.06, 0.08); // boost argenteo
 
-                float lighting = 0.25 + 0.75 * NdotL + forwardScatter;
-                col *= lighting;
+                // Lato ombra: opaco e freddo
+                vec3 shadowColor = col * 0.4 * vec3(0.85, 0.88, 0.95); // tinta blu-fredda
 
-                // ── Ombra del pianeta sull'anello ──
+                // Mix basato sull'orientamento rispetto alla luce
+                float litFactor = absNdotL;
+                vec3 finalCol = mix(shadowColor, litColor, litFactor);
+
+                // Forward scattering (traslucidità ai bordi rarefatti)
+                // La luce attraversa le zone meno dense
+                float VdotL = max(dot(viewDir, -lightDir), 0.0);
+                float scatter = pow(VdotL, 4.0) * (1.0 - density * 0.7) * 0.35;
+                finalCol += vec3(1.0, 0.95, 0.85) * scatter;
+
+                // Back scatter morbido (riflesso diffuso)
+                float backScatter = pow(max(dot(viewDir, lightDir), 0.0), 2.0) * 0.08;
+                finalCol += col * backScatter;
+
+                // ═══════════════════════════════════════════
+                // OMBRA DEL PIANETA
+                // ═══════════════════════════════════════════
                 vec3 toSun = normalize(uSunPos - uPlanetPos);
                 vec3 fragFromPlanet = vWorldPos - uPlanetPos;
                 float projOnSun = dot(fragFromPlanet, toSun);
                 vec3 closestOnRay = uPlanetPos + toSun * projOnSun;
                 float distFromAxis = length(vWorldPos - closestOnRay);
-                // Usa il raggio reale del pianeta per l'ombra
-                float planetShadow = smoothstep(uPlanetRadius * 0.9, uPlanetRadius * 1.15, distFromAxis);
+
+                float planetShadow = smoothstep(uPlanetRadius * 0.92, uPlanetRadius * 1.08, distFromAxis);
                 if (projOnSun < 0.0) {
-                    col *= mix(0.12, 1.0, planetShadow);
+                    // Nell'ombra: molto scuro ma non completamente nero
+                    finalCol *= mix(0.06, 1.0, planetShadow);
+                    // Bordo ombra leggermente bluastro
+                    finalCol += vec3(0.02, 0.03, 0.06) * (1.0 - planetShadow);
                 }
 
-                gl_FragColor = vec4(col, alpha * 0.8);
+                // Traslucidità: zone rarefatte lasciano passare più luce
+                alpha *= mix(0.85, 1.0, litFactor);
+
+                gl_FragColor = vec4(finalCol, alpha);
             }`
     });
 
@@ -398,28 +488,28 @@ function addPlanet(scene, cfg) {
    ══════════════════════════════════════════════════════════════ */
 export function initPlanets(scene) {
     addPlanet(scene, {
-        name: 'Mercury', radius: 0.35, orbitR: 8, speed: 4.15, rotSpeed: 0.004,
+        name: 'Mercurio', radius: 0.35, orbitR: 8, speed: 4.15, rotSpeed: 0.004,
         hsl: [30, 20, 50], dotColor: '#a8937e', atmoColor: '#aa8866'
     });
 
     addPlanet(scene, {
-        name: 'Venus', radius: 0.85, orbitR: 13, speed: 1.62, rotSpeed: -0.002,
+        name: 'Venere', radius: 0.85, orbitR: 13, speed: 1.62, rotSpeed: -0.002,
         hsl: [40, 50, 65], dotColor: '#e8c56d', atmoColor: '#ffcc66'
     });
 
     addPlanet(scene, {
-        name: 'Earth', radius: 1.0, orbitR: 18, speed: 1.0, rotSpeed: 0.01,
+        name: 'Terra', radius: 1.0, orbitR: 18, speed: 1.0, rotSpeed: 0.01,
         hsl: [210, 60, 45], dotColor: '#4a90d9', atmoColor: '#4499ff',
         moons: [{ name: 'Luna', radius: 0.25, orbitR: 2.0, speed: 3.0, color: 0xbbbbbb }]
     });
 
     addPlanet(scene, {
-        name: 'Mars', radius: 0.5, orbitR: 25, speed: 0.53, rotSpeed: 0.009,
+        name: 'Marte', radius: 0.5, orbitR: 25, speed: 0.53, rotSpeed: 0.009,
         hsl: [10, 65, 42], dotColor: '#c1440e', atmoColor: '#dd6633'
     });
 
     addPlanet(scene, {
-        name: 'Jupiter', radius: 2.8, orbitR: 45, speed: 0.084, rotSpeed: 0.02,
+        name: 'Giove', radius: 2.8, orbitR: 45, speed: 0.084, rotSpeed: 0.02,
         dotColor: '#c88b3a', atmoColor: '#ddaa55', customMaterial: createJupiterMaterial(),
         moons: [
             { name: 'Io', radius: 0.2, orbitR: 4.5, speed: 2.5, color: 0xeeddaa },
@@ -430,7 +520,7 @@ export function initPlanets(scene) {
     });
 
     addPlanet(scene, {
-        name: 'Saturn', radius: 2.2, orbitR: 70, speed: 0.034, rotSpeed: 0.018,
+        name: 'Saturno', radius: 2.2, orbitR: 70, speed: 0.034, rotSpeed: 0.018,
         dotColor: '#d4b87a', atmoColor: '#ccaa66', tilt: 0.46,
         customMaterial: createSaturnMaterial(),
         isSaturnRing: true, ringInner: 2.8, ringOuter: 8.0,
@@ -441,13 +531,13 @@ export function initPlanets(scene) {
     });
 
     addPlanet(scene, {
-        name: 'Uranus', radius: 1.5, orbitR: 100, speed: 0.012, rotSpeed: 0.012,
+        name: 'Urano', radius: 1.5, orbitR: 100, speed: 0.012, rotSpeed: 0.012,
         hsl: [180, 45, 60], dotColor: '#7ec8e3', atmoColor: '#66cccc', tilt: 1.71,
         hasRing: true, ringInner: 2.2, ringOuter: 3.2, ringColor: [150, 200, 220], ringOpacity: 0.25
     });
 
     addPlanet(scene, {
-        name: 'Neptune', radius: 1.4, orbitR: 130, speed: 0.006, rotSpeed: 0.011,
+        name: 'Nettuno', radius: 1.4, orbitR: 130, speed: 0.006, rotSpeed: 0.011,
         hsl: [220, 60, 45], dotColor: '#3366ff', atmoColor: '#3366ff'
     });
 }
