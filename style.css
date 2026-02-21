@@ -72,8 +72,8 @@ canvas {
     z-index: 100;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 10px 18px;
+    gap: 12px;
+    padding: 5px 20px;
     border-radius: 40px;
     /* Glassmorphism */
     background: rgba(255, 255, 255, 0.04);
@@ -91,8 +91,7 @@ canvas {
 
 .planet-dot {
     position: relative;
-    width: 18px;
-    height: 18px;
+    /* width e height settati via JS in base al raggio del pianeta */
     border-radius: 50%;
     cursor: pointer;
     transition: transform .3s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s ease;
@@ -130,6 +129,82 @@ canvas {
 /* Active indicator ring */
 .planet-dot.active {
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+/* ── Planet Group (pianeta + lune) ── */
+.planet-group {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* ── Moon Container (appare sopra il dot pianeta) ── */
+.moon-container {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s ease, transform .3s ease;
+    transform: translateX(-50%) translateY(4px);
+}
+
+.planet-group:hover .moon-container {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ── Moon Dot ── */
+.moon-dot {
+    position: relative;
+    /* width e height settati via JS */
+    border-radius: 50%;
+    background: rgba(200, 200, 210, 0.6);
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: transform .3s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s ease, background .2s ease;
+}
+
+.moon-dot:hover {
+    transform: scale(1.6);
+    background: rgba(230, 230, 240, 0.9);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+.moon-dot.active {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* Moon label tooltip – solo on hover */
+.moon-dot::after {
+    content: attr(data-name);
+    position: absolute;
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%) translateX(4px);
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity .2s ease, transform .2s ease;
+    pointer-events: none;
+    text-shadow: 0 0 8px rgba(0, 0, 0, .9);
+}
+
+.moon-dot:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
 }
 
 /* ── Quality Toggle ── */

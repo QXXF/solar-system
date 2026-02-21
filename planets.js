@@ -80,8 +80,6 @@ function createPlanetMaterial(tex, emissiveColor) {
         emissiveMap: tex,
         emissiveIntensity: 0.08
     });
-} `
-    });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -148,13 +146,12 @@ void main() {
         float swirl = sin(atan(spotDelta.y, spotDelta.x) * 3.0 + spotDist * 60.0) * 0.5 + 0.5;
     col = mix(col, spotColor * 0.7, swirl * spot * 0.3);
 
-        // ── Illuminazione solare ──
+        // ── Illuminazione solare (calibrata con MeshStandardMaterial) ──
         vec3 lightDir = normalize(uSunPos - vWorldPos);
         float NdotL = max(dot(vNormal, lightDir), 0.0);
-        vec3 lit = col * NdotL * 1.2;
-    lit += col * (1.0 - NdotL) * 0.08;
+        vec3 lit = col * (NdotL * 0.8 + 0.12);
 
-    gl_FragColor = vec4(lit, 1.0);
+    gl_FragColor = vec4(clamp(lit, 0.0, 1.0), 1.0);
 } `
     });
 }
@@ -196,9 +193,8 @@ void main() {
 
         vec3 lightDir = normalize(uSunPos - vWorldPos);
         float NdotL = max(dot(vNormal, lightDir), 0.0);
-        vec3 lit = col * NdotL * 1.2;
-    lit += col * (1.0 - NdotL) * 0.08;
-    gl_FragColor = vec4(lit, 1.0);
+        vec3 lit = col * (NdotL * 0.8 + 0.12);
+    gl_FragColor = vec4(clamp(lit, 0.0, 1.0), 1.0);
 } `
     });
 }
@@ -211,60 +207,102 @@ void main() {
    Trasparenza variabile → look realistico.
 */
 function createSaturnRing(innerR, outerR) {
-    const geo = new THREE.RingGeometry(innerR, outerR, 128);
+    const geo = new THREE.RingGeometry(innerR, outerR, 128, 1);
     const pos = geo.attributes.position, uv = geo.attributes.uv;
     for (let i = 0; i < uv.count; i++) {
         const x = pos.getX(i), z = pos.getZ(i);
-        uv.setXY(i, (Math.sqrt(x * x + z * z) - innerR) / (outerR - innerR), 1);
+        uv.setXY(i, (Math.sqrt(x * x + z * z) - innerR) / (outerR - innerR), 0.5);
     }
 
     const mat = new THREE.ShaderMaterial({
-        uniforms: { uSunPos: { value: new THREE.Vector3(0, 0, 0) } },
+        uniforms: {
+            uSunPos: { value: new THREE.Vector3(0, 0, 0) },
+            uPlanetPos: { value: new THREE.Vector3(0, 0, 0) },
+            uPlanetRadius: { value: 2.2 }
+        },
         transparent: true,
         side: THREE.DoubleSide,
         depthWrite: false,
         vertexShader: `
-      varying vec2 vUv; varying vec3 vWorldPos;
-void main() {
-    vUv = uv;
-    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
-    gl_Position = projectionMatrix * viewMatrix * vec4(vWorldPos, 1.0);
-} `,
+            varying vec2 vUv;
+            varying vec3 vWorldPos;
+            varying vec3 vWorldNormal;
+            void main() {
+                vUv = uv;
+                vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+                vWorldNormal = normalize((modelMatrix * vec4(0.0, 0.0, 1.0, 0.0)).xyz);
+                gl_Position = projectionMatrix * viewMatrix * vec4(vWorldPos, 1.0);
+            }`,
         fragmentShader: `
-      uniform vec3 uSunPos;
-      varying vec2 vUv;
-      varying vec3 vWorldPos;
-void main() {
-        float t = vUv.x; // 0 = bordo interno, 1 = bordo esterno
+            uniform vec3 uSunPos;
+            uniform vec3 uPlanetPos;
+            uniform float uPlanetRadius;
+            varying vec2 vUv;
+            varying vec3 vWorldPos;
+            varying vec3 vWorldNormal;
 
-        // Colori base dell'anello
-        vec3 innerColor = vec3(0.85, 0.75, 0.58);  // B ring, luminoso
-        vec3 outerColor = vec3(0.70, 0.62, 0.50);  // A ring, più scuro
-        vec3 col = mix(innerColor, outerColor, t);
+            void main() {
+                float t = clamp(vUv.x, 0.0, 1.0);
 
-        // Bande dettagliate
-        float bands = sin(t * 120.0) * 0.5 + 0.5;
-    bands *= sin(t * 200.0 + 0.5) * 0.3 + 0.7;
-    col *= 0.7 + bands * 0.3;
+                // ── Colore base con gradiente radiale morbido ──
+                vec3 innerCol = vec3(0.90, 0.82, 0.65);  // B ring crema caldo
+                vec3 midCol   = vec3(0.82, 0.72, 0.55);  // transizione
+                vec3 outerCol = vec3(0.65, 0.55, 0.42);  // A ring più freddo
+                vec3 col;
+                if (t < 0.5) {
+                    col = mix(innerCol, midCol, t * 2.0);
+                } else {
+                    col = mix(midCol, outerCol, (t - 0.5) * 2.0);
+                }
 
-        // ── Divisione di Cassini ── (gap scuro a ~60-65%)
-        float cassini = 1.0 - smoothstep(0.57, 0.60, t) * (1.0 - smoothstep(0.63, 0.66, t));
-        float alpha = cassini;
+                // ── Bande concentriche morbide (no artefatti) ──
+                float b1 = smoothstep(0.3, 0.5, sin(t * 40.0)) * 0.12;
+                float b2 = smoothstep(0.3, 0.5, sin(t * 80.0 + 1.0)) * 0.06;
+                col *= 1.0 - b1 - b2;
 
-    // Sfuma ai bordi estremi
-    alpha *= smoothstep(0.0, 0.08, t); // bordo interno
-    alpha *= 1.0 - smoothstep(0.92, 1.0, t); // bordo esterno
+                // ── Divisione di Cassini ──
+                float cassiniCenter = 0.62;
+                float cassiniWidth  = 0.03;
+                float cassini = smoothstep(cassiniCenter - cassiniWidth, cassiniCenter - cassiniWidth * 0.3, t)
+                              * (1.0 - smoothstep(cassiniCenter + cassiniWidth * 0.3, cassiniCenter + cassiniWidth, t));
+                float alpha = 1.0 - cassini * 0.9;
 
-    // Modulazione bande di opacità
-    alpha *= 0.5 + bands * 0.5;
+                // ── Encke gap sottile ──
+                float encke = smoothstep(0.82, 0.83, t) * (1.0 - smoothstep(0.84, 0.85, t));
+                alpha *= 1.0 - encke * 0.6;
 
-        // Illuminazione base
-        vec3 lightDir = normalize(uSunPos - vWorldPos);
-        float light = 0.4 + 0.6 * max(dot(vec3(0.0, 1.0, 0.0), lightDir), 0.0);
-    col *= light;
+                // ── Sfuma ai bordi ──
+                alpha *= smoothstep(0.0, 0.06, t);
+                alpha *= 1.0 - smoothstep(0.94, 1.0, t);
 
-    gl_FragColor = vec4(col, alpha * 0.85);
-} `
+                // ── Densità variabile (B ring più denso di A ring) ──
+                float density = mix(0.85, 0.45, smoothstep(0.0, 1.0, t));
+                alpha *= density;
+
+                // ── Illuminazione solare ──
+                vec3 lightDir = normalize(uSunPos - vWorldPos);
+                float NdotL = abs(dot(vWorldNormal, lightDir));
+
+                // Forward scattering (luce che attraversa l'anello)
+                float forwardScatter = pow(max(dot(normalize(vWorldPos - uSunPos), normalize(vWorldPos - cameraPosition)), 0.0), 3.0) * 0.3;
+
+                float lighting = 0.25 + 0.75 * NdotL + forwardScatter;
+                col *= lighting;
+
+                // ── Ombra del pianeta sull'anello ──
+                vec3 toSun = normalize(uSunPos - uPlanetPos);
+                vec3 fragFromPlanet = vWorldPos - uPlanetPos;
+                float projOnSun = dot(fragFromPlanet, toSun);
+                vec3 closestOnRay = uPlanetPos + toSun * projOnSun;
+                float distFromAxis = length(vWorldPos - closestOnRay);
+                // Usa il raggio reale del pianeta per l'ombra
+                float planetShadow = smoothstep(uPlanetRadius * 0.9, uPlanetRadius * 1.15, distFromAxis);
+                if (projOnSun < 0.0) {
+                    col *= mix(0.12, 1.0, planetShadow);
+                }
+
+                gl_FragColor = vec4(col, alpha * 0.8);
+            }`
     });
 
     const mesh = new THREE.Mesh(geo, mat);
@@ -284,7 +322,7 @@ function createRing(innerR, outerR, color, opacity = 0.5) {
         for (let x = 0; x < s; x++) {
             const t = x / s;
             const a = (Math.sin(t * 60) * .5 + .5) * (Math.sin(t * 120 + 1) * .3 + .7) * (1 - Math.pow(Math.abs(t - .5) * 2, 2));
-            ctx.fillStyle = `rgba(${ color[0]}, ${ color[1]}, ${ color[2]}, ${ a * opacity})`;
+            ctx.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${a * opacity})`;
             ctx.fillRect(x, 0, 1, 1);
         }
     });
@@ -336,10 +374,15 @@ function addPlanet(scene, cfg) {
     const moonMeshes = moons.map(m => {
         const mMesh = new THREE.Mesh(
             new THREE.SphereGeometry(m.radius, 24, 24),
-            new THREE.MeshStandardMaterial({ color: m.color, roughness: 0.9 })
+            new THREE.MeshStandardMaterial({
+                color: m.color,
+                roughness: 0.7,
+                emissive: m.color,
+                emissiveIntensity: 0.08
+            })
         );
         group.add(mMesh);
-        return { mesh: mMesh, orbitR: m.orbitR, speed: m.speed };
+        return { mesh: mMesh, orbitR: m.orbitR, speed: m.speed, name: m.name || 'Moon', radius: m.radius };
     });
 
     scene.add(group);
@@ -367,7 +410,7 @@ export function initPlanets(scene) {
     addPlanet(scene, {
         name: 'Earth', radius: 1.0, orbitR: 18, speed: 1.0, rotSpeed: 0.01,
         hsl: [210, 60, 45], dotColor: '#4a90d9', atmoColor: '#4499ff',
-        moons: [{ radius: 0.25, orbitR: 2.0, speed: 3.0, color: 0xbbbbbb }]
+        moons: [{ name: 'Luna', radius: 0.25, orbitR: 2.0, speed: 3.0, color: 0xbbbbbb }]
     });
 
     addPlanet(scene, {
@@ -379,10 +422,10 @@ export function initPlanets(scene) {
         name: 'Jupiter', radius: 2.8, orbitR: 45, speed: 0.084, rotSpeed: 0.02,
         dotColor: '#c88b3a', atmoColor: '#ddaa55', customMaterial: createJupiterMaterial(),
         moons: [
-            { radius: 0.2, orbitR: 4.5, speed: 2.5, color: 0xeeddaa },
-            { radius: 0.25, orbitR: 5.5, speed: 1.8, color: 0xaabbcc },
-            { radius: 0.18, orbitR: 6.5, speed: 1.2, color: 0xccbbaa },
-            { radius: 0.3, orbitR: 8.0, speed: 0.8, color: 0xddccbb }
+            { name: 'Io', radius: 0.2, orbitR: 4.5, speed: 2.5, color: 0xeeddaa },
+            { name: 'Europa', radius: 0.25, orbitR: 5.5, speed: 1.8, color: 0xaabbcc },
+            { name: 'Ganymede', radius: 0.18, orbitR: 6.5, speed: 1.2, color: 0xccbbaa },
+            { name: 'Callisto', radius: 0.3, orbitR: 8.0, speed: 0.8, color: 0xddccbb }
         ]
     });
 
@@ -390,10 +433,10 @@ export function initPlanets(scene) {
         name: 'Saturn', radius: 2.2, orbitR: 70, speed: 0.034, rotSpeed: 0.018,
         dotColor: '#d4b87a', atmoColor: '#ccaa66', tilt: 0.46,
         customMaterial: createSaturnMaterial(),
-        isSaturnRing: true, ringInner: 3.0, ringOuter: 6.5,
+        isSaturnRing: true, ringInner: 2.8, ringOuter: 8.0,
         moons: [
-            { radius: 0.35, orbitR: 7.5, speed: 1.6, color: 0xeeddcc },
-            { radius: 0.15, orbitR: 8.5, speed: 2.2, color: 0xaabbaa }
+            { name: 'Titan', radius: 0.35, orbitR: 7.5, speed: 1.6, color: 0xeeddcc },
+            { name: 'Enceladus', radius: 0.15, orbitR: 8.5, speed: 2.2, color: 0xaabbaa }
         ]
     });
 

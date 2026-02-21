@@ -122,6 +122,10 @@ function animate() {
     // Sole
     sunMat.uniforms.uTime.value = t;
     coronaMat.uniforms.uTime.value = t;
+    // Aggiorna tutti i glow layers volumetrici
+    if (coronaMat._allLayers) {
+        coronaMat._allLayers.forEach(mat => { mat.uniforms.uTime.value = t; });
+    }
     sunMesh.rotation.y = t * 0.1;
 
     // Stelle
@@ -138,6 +142,22 @@ function animate() {
         if (p.hasCustomShader && p.mesh.material.uniforms.uTime) {
             p.mesh.material.uniforms.uTime.value = t;
         }
+
+        // Aggiorna uSunPos per shader custom (Jupiter, Saturn, anelli)
+        if (p.hasCustomShader && p.mesh.material.uniforms.uSunPos) {
+            p.mesh.material.uniforms.uSunPos.value.set(0, 0, 0);
+        }
+        // Aggiorna uSunPos / uPlanetPos per i figli del gruppo (es. anelli Saturn)
+        p.group.children.forEach(child => {
+            if (child.material && child.material.uniforms) {
+                if (child.material.uniforms.uSunPos) {
+                    child.material.uniforms.uSunPos.value.set(0, 0, 0);
+                }
+                if (child.material.uniforms.uPlanetPos) {
+                    child.material.uniforms.uPlanetPos.value.copy(p.group.position);
+                }
+            }
+        });
 
         p.moonMeshes.forEach(m => {
             const ma = t * m.speed;

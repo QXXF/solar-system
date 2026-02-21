@@ -170,7 +170,7 @@ export function initPostProcessing(renderer, scene, camera) {
   // Bloom
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    1.0, 0.4, 0.35
+    1.2, 0.6, 0.25
   );
   composer.addPass(bloomPass);
 
