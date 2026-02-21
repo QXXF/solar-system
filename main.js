@@ -428,12 +428,14 @@ ioFolder.add({
 const qualityBtn = document.getElementById('quality-toggle');
 let currentQuality = 'normal';
 
-qualityBtn.addEventListener('click', () => {
-    currentQuality = currentQuality === 'normal' ? 'ultra' : 'normal';
-    setQuality(currentQuality);
-    qualityBtn.textContent = currentQuality;
-    qualityBtn.classList.toggle('ultra', currentQuality === 'ultra');
-});
+if (qualityBtn) {
+    qualityBtn.addEventListener('click', () => {
+        currentQuality = currentQuality === 'normal' ? 'ultra' : 'normal';
+        setQuality(currentQuality);
+        qualityBtn.textContent = currentQuality;
+        qualityBtn.classList.toggle('ultra', currentQuality === 'ultra');
+    });
+}
 
 /* ── Labels ── */
 const labelContainer = document.createElement('div');
@@ -538,7 +540,7 @@ function animate() {
 setTimeout(() => {
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('planet-menu').classList.add('visible');
-    qualityBtn.classList.add('visible');
+    if (qualityBtn) qualityBtn.classList.add('visible');
     animate();
 }, 400);
 
