@@ -211,8 +211,8 @@ function createSaturnRing(innerR, outerR) {
     const geo = new THREE.RingGeometry(innerR, outerR, 192, 1);
     const pos = geo.attributes.position, uv = geo.attributes.uv;
     for (let i = 0; i < uv.count; i++) {
-        const x = pos.getX(i), z = pos.getZ(i);
-        uv.setXY(i, (Math.sqrt(x * x + z * z) - innerR) / (outerR - innerR), 0.5);
+        const x = pos.getX(i), y = pos.getY(i);
+        uv.setXY(i, (Math.sqrt(x * x + y * y) - innerR) / (outerR - innerR), 0.5);
     }
 
     const mat = new THREE.ShaderMaterial({
@@ -402,26 +402,53 @@ function createSaturnRing(innerR, outerR) {
 
 /* ── Anello generico (Urano) ── */
 function createRing(innerR, outerR, color, opacity = 0.5) {
-    const geo = new THREE.RingGeometry(innerR, outerR, 64);
+    const geo = new THREE.RingGeometry(innerR, outerR, 128);
     const pos = geo.attributes.position, uv = geo.attributes.uv;
     for (let i = 0; i < uv.count; i++) {
-        const x = pos.getX(i), z = pos.getZ(i);
-        uv.setXY(i, (Math.sqrt(x * x + z * z) - innerR) / (outerR - innerR), 1);
+        const x = pos.getX(i), y = pos.getY(i);
+        // u = posizione radiale normalizzata (0 = bordo interno, 1 = esterno)
+        // v = 0.5 per campionare il centro della texture 1D
+        uv.setXY(i, (Math.sqrt(x * x + y * y) - innerR) / (outerR - innerR), 0.5);
     }
-    const ringTex = generateTexture(512, (ctx, s) => {
-        for (let x = 0; x < s; x++) {
-            const t = x / s;
-            const a = (Math.sin(t * 60) * .5 + .5) * (Math.sin(t * 120 + 1) * .3 + .7) * (1 - Math.pow(Math.abs(t - .5) * 2, 2));
-            ctx.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${a * opacity})`;
-            ctx.fillRect(x, 0, 1, 1);
-        }
-    });
-    ringTex.rotation = Math.PI / 2;
+
+    // Texture 1D: canvas Nx1 con bande di densità variabile
+    const texW = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = texW;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+    for (let x = 0; x < texW; x++) {
+        const t = x / texW;
+        // Profilo densità: bordi sfumati, bande sinusoidali
+        // Alpha NON moltiplicata per opacity – sarà il materiale a gestirla
+        const edgeFade = smoothstepJS(0.0, 0.05, t) * (1.0 - smoothstepJS(0.95, 1.0, t));
+        const bands = (Math.sin(t * 60) * 0.5 + 0.5) * (Math.sin(t * 120 + 1) * 0.3 + 0.7);
+        const a = bands * edgeFade;
+        ctx.fillStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${a})`;
+        ctx.fillRect(x, 0, 1, 1);
+    }
+    const ringTex = new THREE.CanvasTexture(canvas);
+    ringTex.minFilter = THREE.LinearFilter;
+    ringTex.magFilter = THREE.LinearFilter;
+
+    const ringColor = new THREE.Color(color[0] / 255, color[1] / 255, color[2] / 255);
     const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-        map: ringTex, transparent: true, side: THREE.DoubleSide, depthWrite: false, opacity
+        map: ringTex,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        opacity,
+        emissive: ringColor,
+        emissiveIntensity: 0.15
     }));
     mesh.rotation.x = -Math.PI / 2;
     return mesh;
+}
+
+// Utility smoothstep per JS (usata nella generazione texture)
+function smoothstepJS(edge0, edge1, x) {
+    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -452,9 +479,13 @@ function addPlanet(scene, cfg) {
 
     // Anelli
     if (isSaturnRing) {
-        group.add(createSaturnRing(ringInner, ringOuter));
+        const ring = createSaturnRing(ringInner, ringOuter);
+        ring.rotation.z = tilt; // L'anello segue l'inclinazione del pianeta
+        group.add(ring);
     } else if (hasRing) {
-        group.add(createRing(ringInner, ringOuter, ringColor, ringOpacity));
+        const ring = createRing(ringInner, ringOuter, ringColor, ringOpacity);
+        ring.rotation.z = tilt; // L'anello segue l'inclinazione del pianeta
+        group.add(ring);
     }
 
     mesh.rotation.z = tilt;
@@ -533,7 +564,7 @@ export function initPlanets(scene) {
     addPlanet(scene, {
         name: 'Urano', radius: 1.5, orbitR: 100, speed: 0.012, rotSpeed: 0.012,
         hsl: [180, 45, 60], dotColor: '#7ec8e3', atmoColor: '#66cccc', tilt: 1.71,
-        hasRing: true, ringInner: 2.2, ringOuter: 3.2, ringColor: [150, 200, 220], ringOpacity: 0.25
+        hasRing: true, ringInner: 2.0, ringOuter: 3.5, ringColor: [150, 200, 220], ringOpacity: 0.4
     });
 
     addPlanet(scene, {

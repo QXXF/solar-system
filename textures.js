@@ -1,5 +1,5 @@
 /**
- * textures.js – Generatori di texture procedurali
+ * textures.js - Generatori di texture procedurali
  *
  * Tutte le texture sono create via Canvas 2D, senza file esterni.
  */

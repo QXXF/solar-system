@@ -1,5 +1,5 @@
 /**
- * sun.js – Sole con glow volumetrico multi-strato
+ * sun.js - Sole con glow volumetrico multi-strato
  *
  * Il sole NON deve avere bordi definiti. L'effetto è ottenuto con:
  *   1. Core sphere: shader plasma senza Fresnel duro ai bordi
@@ -16,7 +16,7 @@ export function createSun(scene) {
   const SUN_RADIUS = 1.41;
 
   /* ══════════════════════════════════════════════════════════════
-     CORE – sfera interna con bordi morbidi (alpha fade al rim)
+     CORE - sfera interna con bordi morbidi (alpha fade al rim)
      ══════════════════════════════════════════════════════════════ */
   const sunGeo = new THREE.SphereGeometry(SUN_RADIUS, 64, 64);
   const sunMat = new THREE.ShaderMaterial({
@@ -75,7 +75,7 @@ export function createSun(scene) {
   scene.add(sunMesh);
 
   /* ══════════════════════════════════════════════════════════════
-     GLOW LAYERS – sfere concentriche BackSide per glow volumetrico
+     GLOW LAYERS - sfere concentriche BackSide per glow volumetrico
      ══════════════════════════════════════════════════════════════
      Approccio: `pow(facing, power)` — la luce è più intensa dove si guarda
      ATTRAVERSO la sfera verso il centro del sole, e decade a zero ai bordi

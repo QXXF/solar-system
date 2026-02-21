@@ -1,5 +1,5 @@
 /**
- * main.js – Orchestrator cinematografico
+ * main.js - Orchestrator cinematografico
  *
  * Importa tutti i moduli e gestisce: scene setup, animation loop,
  * quality toggle, labels, resize.
@@ -80,7 +80,7 @@ initPlanetMenu(camera, controls);
 setProgress(90);
 
 /* ══════════════════════════════════════════════════════════════
-   DEBUG GUI – lil-gui + import/export CONFIG
+   DEBUG GUI - lil-gui + import/export CONFIG
    ══════════════════════════════════════════════════════════════ */
 const toneOpts = {
     'ACES Filmic': THREE.ACESFilmicToneMapping,

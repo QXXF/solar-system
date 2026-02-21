@@ -1,5 +1,5 @@
 /**
- * starfield.js – Campo stellare cinematografico
+ * starfield.js - Campo stellare cinematografico
  *
  * Miglioramenti:
  *   - Sfondo non pitch-black: scena con fog color dark blue/purple
@@ -33,19 +33,19 @@ export function createStarfield(scene) {
     const temp = Math.random();
     let h, s, l;
     if (temp < 0.15) {
-      // Stelle calde blu (O/B) – rare, brillanti
+      // Stelle calde blu (O/B) - rare, brillanti
       h = 0.6; s = 0.6; l = 0.8 + Math.random() * 0.2;
     } else if (temp < 0.35) {
       // Stelle bianco-azzurre (A)
       h = 0.58; s = 0.2; l = 0.7 + Math.random() * 0.3;
     } else if (temp < 0.6) {
-      // Stelle gialle (G) – tipo sole
+      // Stelle gialle (G) - tipo sole
       h = 0.12; s = 0.4; l = 0.6 + Math.random() * 0.3;
     } else if (temp < 0.8) {
       // Stelle arancioni (K)
       h = 0.08; s = 0.5; l = 0.5 + Math.random() * 0.3;
     } else {
-      // Stelle rosse (M) – le più comuni
+      // Stelle rosse (M) - le più comuni
       h = 0.02; s = 0.6; l = 0.4 + Math.random() * 0.3;
     }
 

@@ -1,4 +1,4 @@
-# 🌌 Solar System – Three.js Demo
+# 🌌 Solar System - Three.js Demo
 
 Demo interattiva del sistema solare realizzata in **HTML + CSS + JavaScript** puro, con [Three.js](https://threejs.org/) caricata via CDN.
 
@@ -16,7 +16,7 @@ Demo interattiva del sistema solare realizzata in **HTML + CSS + JavaScript** pu
 
 Un qualsiasi **server HTTP statico** (i moduli ES non funzionano aprendo il file direttamente con `file://`).
 
-### Opzione 1 – npx (nessuna installazione)
+### Opzione 1 - npx (nessuna installazione)
 
 ```bash
 npx -y serve . -l 3000
@@ -24,13 +24,13 @@ npx -y serve . -l 3000
 
 Apri il browser su **http://localhost:3000**
 
-### Opzione 2 – Python
+### Opzione 2 - Python
 
 ```bash
 python -m http.server 3000
 ```
 
-### Opzione 3 – VS Code
+### Opzione 3 - VS Code
 
 Installa l'estensione **Live Server** e clicca "Go Live" in basso a destra.
 
@@ -58,11 +58,11 @@ Nessuna dipendenza da installare. Nessun bundler. Tutto gira dal browser.
 | **Corona solare** | Sfera `BackSide` trasparente con glow Fresnel + flicker temporale |
 | **8 pianeti** | Texture procedurali (rumore sinusoidale HSL), rotazione assiale, orbita circolare |
 | **Atmosfere** | Fresnel shader su Terra, Venere, Marte, Urano, Nettuno |
-| **Anelli** | Saturno e Urano – texture a bande procedurali con remapping UV radiale |
+| **Anelli** | Saturno e Urano - texture a bande procedurali con remapping UV radiale |
 | **Lune** | Terra (Luna), Giove (4 galileiane), Saturno (Titano, Rea) |
 | **Fascia asteroidi** | 1500 particelle distribuite in un toro tra Marte e Giove |
 | **Starfield** | 12.000 stelle con distribuzione sferica uniforme e scintillio shader |
-| **Bloom** | UnrealBloomPass – god rays dal sole, threshold 0.4 |
+| **Bloom** | UnrealBloomPass - god rays dal sole, threshold 0.4 |
 | **Vignette** | Scurimento ai bordi dello schermo (dist² × 0.85) |
 | **Aberrazione cromatica** | Separazione R/G/B proporzionale alla distanza dal centro |
 | **ACES tone mapping** | Curva cinematografica per neri profondi e highlight morbidi |

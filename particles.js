@@ -1,5 +1,5 @@
 /**
- * particles.js – Effetti particellari: solar wind + comete
+ * particles.js - Effetti particellari: solar wind + comete
  *
  * Solar Wind:
  *   Particelle emesse radialmente dal sole con velocità casuale.

@@ -1,5 +1,5 @@
 /**
- * postprocessing.js – Pipeline cinematografica anamorphic hi-end
+ * postprocessing.js - Pipeline cinematografica anamorphic hi-end
  *
  * Pipeline:
  *   1. RenderPass → render scena base

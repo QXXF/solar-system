@@ -1,5 +1,5 @@
 /**
- * camera-pov.js – Camera POV con taglio netto + menu pianeti/lune
+ * camera-pov.js - Camera POV con taglio netto + menu pianeti/lune
  *
  * Hover su pianeta/luna → camera si teletrasporta istantaneamente (hard cut)
  * Menu dots: dimensioni variabili proporzionali al raggio del pianeta

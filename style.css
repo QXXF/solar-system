@@ -184,7 +184,7 @@ canvas {
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
 }
 
-/* Moon label tooltip – solo on hover */
+/* Moon label tooltip - solo on hover */
 .moon-dot::after {
     content: attr(data-name);
     position: absolute;

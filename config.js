@@ -1,5 +1,5 @@
 /**
- * config.js – Archivio centralizzato costanti simulazione
+ * config.js - Archivio centralizzato costanti simulazione
  *
  * Tutti i parametri tunabili del debug panel sono definiti qui.
  * Usato come default e come formato per import/export JSON.
