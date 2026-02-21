@@ -13,6 +13,7 @@ body {
     height: 100%;
     overflow: hidden;
     background: #000;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
 }
 
 canvas {
@@ -56,9 +57,115 @@ canvas {
 
 .loader-pct {
     margin-top: 12px;
-    font-family: 'Inter', 'Segoe UI', sans-serif;
     font-size: 11px;
     letter-spacing: 3px;
     color: rgba(255, 255, 255, 0.3);
     font-variant-numeric: tabular-nums;
+}
+
+/* ── Planet Selector Menu ── */
+#planet-menu {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 40px;
+    /* Glassmorphism */
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    opacity: 0;
+    transition: opacity .8s ease .4s;
+}
+
+#planet-menu.visible {
+    opacity: 1;
+}
+
+.planet-dot {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform .3s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s ease;
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
+}
+
+.planet-dot:hover {
+    transform: scale(1.6);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Tooltip */
+.planet-dot::after {
+    content: attr(data-name);
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity .25s ease, transform .25s ease;
+    pointer-events: none;
+    text-shadow: 0 0 10px rgba(0, 0, 0, .9);
+}
+
+.planet-dot:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Active indicator ring */
+.planet-dot.active {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+/* ── Quality Toggle ── */
+#quality-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 100;
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all .3s ease;
+    opacity: 0;
+}
+
+#quality-toggle.visible {
+    opacity: 1;
+}
+
+#quality-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#quality-toggle.ultra {
+    border-color: rgba(255, 180, 80, 0.3);
+    color: rgba(255, 200, 120, 0.8);
+    box-shadow: 0 0 12px rgba(255, 150, 50, 0.15);
 }
