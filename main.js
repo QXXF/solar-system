@@ -462,6 +462,8 @@ if (qualityBtn) {
     });
 }
 
+gui.close()
+
 /* ── Labels ── */
 const labelContainer = document.createElement('div');
 labelContainer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:10;overflow:hidden;';
