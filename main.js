@@ -10,7 +10,7 @@ import GUI from 'lil-gui';
 import CONFIG from './config.js';
 import { createStarfield } from './starfield.js';
 import { createSun } from './sun.js';
-import { planets, initPlanets, createAsteroidBelt } from './planets.js';
+import { planets, initPlanets, createAsteroidBelt, createKuiperBelt } from './planets.js';
 import { initPostProcessing } from './postprocessing.js';
 import { updateCameraPOV, initPlanetMenu } from './camera-pov.js';
 import { createSolarWind, updateSolarWind, createCometSystem, particleParams } from './particles.js';
@@ -65,6 +65,7 @@ initPlanets(scene);
 setProgress(55);
 
 const asteroidBelt = createAsteroidBelt(scene);
+const kuiperBelt = createKuiperBelt(scene);
 setProgress(65);
 
 const { composer, bloomPass, streakPass, compositePass, setQuality } = initPostProcessing(renderer, scene, camera);
@@ -116,6 +117,12 @@ const starParams = {
 const asteroidParams = {
     rotationSpeed: CONFIG.asteroids.rotationSpeed,
     visible: CONFIG.asteroids.visible
+};
+
+// Parametri Kuiper belt (runtime)
+const kuiperParams = {
+    rotationSpeed: CONFIG.kuiperBelt.rotationSpeed,
+    visible: CONFIG.kuiperBelt.visible
 };
 
 /** Applica un oggetto config a tutti i parametri runtime */
@@ -192,6 +199,13 @@ function applyConfig(cfg) {
         asteroidParams.visible = cfg.asteroids.visible;
         asteroidBelt.visible = cfg.asteroids.visible;
     }
+
+    // Kuiper Belt
+    if (cfg.kuiperBelt) {
+        kuiperParams.rotationSpeed = cfg.kuiperBelt.rotationSpeed;
+        kuiperParams.visible = cfg.kuiperBelt.visible;
+        kuiperBelt.visible = cfg.kuiperBelt.visible;
+    }
 }
 
 /** Legge lo stato corrente e restituisce un oggetto config */
@@ -248,6 +262,10 @@ function readCurrentConfig() {
         asteroids: {
             rotationSpeed: asteroidParams.rotationSpeed,
             visible: asteroidParams.visible
+        },
+        kuiperBelt: {
+            rotationSpeed: kuiperParams.rotationSpeed,
+            visible: kuiperParams.visible
         },
         qualityUltra: cfg_qualityUltra,
         qualityNormal: cfg_qualityNormal
@@ -349,6 +367,13 @@ astFolder.add(asteroidParams, 'visible').name('Visibili').onChange(v => {
 });
 astFolder.add(asteroidParams, 'rotationSpeed', 0.0, 0.005, 0.0001).name('Rotazione');
 astFolder.close();
+
+const kuiperFolder = gui.addFolder('Fascia di Kuiper');
+kuiperFolder.add(kuiperParams, 'visible').name('Visibile').onChange(v => {
+    kuiperBelt.visible = v;
+});
+kuiperFolder.add(kuiperParams, 'rotationSpeed', 0.0, 0.001, 0.00001).name('Rotazione');
+kuiperFolder.close();
 
 // ── Quality Presets ──
 const qFolder = gui.addFolder('Quality Presets');
@@ -486,9 +511,17 @@ function animate() {
 
     // Pianeti
     planets.forEach(p => {
-        p.angle += p.speed * 0.004 * (window._debugParams ? window._debugParams.speedMultiplier : 1.0);
-        p.group.position.x = Math.cos(p.angle) * p.orbitR;
-        p.group.position.z = Math.sin(p.angle) * p.orbitR;
+        const speedMul = window._debugParams ? window._debugParams.speedMultiplier : 1.0;
+        p.angle += p.speed * 0.004 * speedMul;
+
+        // Posizione orbitale con inclinazione
+        const cosA = Math.cos(p.angle);
+        const sinA = Math.sin(p.angle);
+        const incl = p.orbitalInclination || 0;
+        p.group.position.x = cosA * p.orbitR;
+        p.group.position.z = sinA * Math.cos(incl) * p.orbitR;
+        p.group.position.y = sinA * Math.sin(incl) * p.orbitR;
+
         p.mesh.rotation.y += p.rotSpeed;
 
         // Aggiorna uTime per shader Jupiter
@@ -512,15 +545,18 @@ function animate() {
             }
         });
 
+        // Lune con inclinazione orbitale
         p.moonMeshes.forEach(m => {
             const ma = t * m.speed;
+            const moonIncl = m.orbitalInclination || 0;
             m.mesh.position.x = Math.cos(ma) * m.orbitR;
-            m.mesh.position.z = Math.sin(ma) * m.orbitR;
-            m.mesh.position.y = Math.sin(ma * 0.3) * 0.15;
+            m.mesh.position.z = Math.sin(ma) * Math.cos(moonIncl) * m.orbitR;
+            m.mesh.position.y = Math.sin(ma) * Math.sin(moonIncl) * m.orbitR;
         });
     });
 
     if (asteroidParams.visible) asteroidBelt.rotation.y += asteroidParams.rotationSpeed;
+    if (kuiperParams.visible) kuiperBelt.rotation.y += kuiperParams.rotationSpeed;
 
     // Particles
     updateSolarWind(solarWind);

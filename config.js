@@ -75,9 +75,15 @@ const CONFIG = {
         visible: true
     },
 
-    /* ── Fascia Asteroidi ── */
+    /* ── Fascia Asteroidi (principale) ── */
     asteroids: {
         rotationSpeed: 0.0001,
+        visible: true
+    },
+
+    /* ── Fascia di Kuiper ── */
+    kuiperBelt: {
+        rotationSpeed: 0.00003,
         visible: true
     },
 

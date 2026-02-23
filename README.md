@@ -1,125 +1,111 @@
-# 🌌 Solar System - Three.js Demo
+# 🌌 Solar System
 
-Demo interattiva del sistema solare realizzata in **HTML + CSS + JavaScript** puro, con [Three.js](https://threejs.org/) caricata via CDN.
+Simulazione interattiva e cinematografica del sistema solare, realizzata in **HTML + CSS + JavaScript** con [Three.js](https://threejs.org/) via CDN. Nessun bundler, nessuna dipendenza da installare.
+
+## ✨ Caratteristiche
+
+### Corpi celesti
+- **Sole** con shader volumetrico: ribollimento vertex, distorsione UV animata, corona Fresnel multi-layer
+- **9 corpi celesti** con proporzioni corrette dei raggi (scala relativa alla Terra) e inclinazioni assiali realistiche
+- **Orbite inclinate** rispetto all'eclittica secondo i dati astronomici reali
+- **15 lune** con inclinazione orbitale rispetto al pianeta ospite (incluso Tritone retrogrado)
+- **Shader dedicati** per Giove (bande atmosferiche + Grande Macchia Rossa) e Saturno (bande dorate + anello multi-banda con Cassini/Encke division)
+- **Atmosfere** Fresnel doppio strato su tutti i pianeti
+
+### Fasce di asteroidi
+- **Fascia principale** — ~1500 particelle tra Marte e Giove
+- **Fascia di Kuiper** — ~2000 particelle oltre Nettuno, con distribuzione più sparsa e colori freddi
+
+### Effetti cinematografici
+- Bloom (UnrealBloomPass) con god rays dal sole
+- Anamorphic streak orizzontale
+- Aberrazione cromatica, vignette, film grain
+- ACES Filmic tone mapping
+- 12.000 stelle con scintillio shader
+- Vento solare e comete particellari
+
+### UI e controlli
+- OrbitControls con damping inerziale e auto-rotazione
+- Camera POV: inquadratura su ogni pianeta dal menu laterale
+- Debug panel completo (lil-gui) con import/export configurazione JSON
+- Quality presets (Normal / Ultra)
+- Label HTML con proiezione 3D→2D e opacità adattiva
 
 ---
 
-## Screenshot
+## 🪐 Dati astronomici
 
-![Solar System](https://img.shields.io/badge/status-running-brightgreen) ![Three.js](https://img.shields.io/badge/Three.js-0.170-blue)
+### Proporzioni e inclinazioni dei pianeti
+
+| Pianeta | Raggio (Terra=1) | Tilt assiale | Inclinazione orbitale |
+|---------|:-:|:-:|:-:|
+| Mercurio | 0.38 | 0.03° | 7.00° |
+| Venere | 0.95 | 177.4° ↻ | 3.39° |
+| Terra | 1.00 | 23.44° | 0° (rif.) |
+| Marte | 0.53 | 25.19° | 1.85° |
+| Giove | 2.80* | 3.13° | 1.31° |
+| Saturno | 2.30* | 26.73° | 2.49° |
+| Urano | 1.50* | 97.77° | 0.77° |
+| Nettuno | 1.40* | 28.32° | 1.77° |
+| Plutone | 0.18 | 119.6° ↻ | 17.16° |
+
+*\* Raggi dei giganti gassosi compressi per leggibilità (valori reali: 11.2, 9.5, 4.0, 3.9).*
+
+### Lune
+
+| Luna | Pianeta | Inclinazione orbitale |
+|------|---------|:-:|
+| Luna | Terra | 5.15° |
+| Phobos | Marte | 1.08° |
+| Deimos | Marte | 1.79° |
+| Io | Giove | 0.04° |
+| Europa | Giove | 0.47° |
+| Ganimede | Giove | 0.18° |
+| Callisto | Giove | 0.19° |
+| Titano | Saturno | 0.33° |
+| Encelado | Saturno | 0.02° |
+| Rhea | Saturno | 0.35° |
+| Miranda | Urano | 4.34° |
+| Ariel | Urano | 0.04° |
+| Tritone | Nettuno | 156.8° ↻ |
+| Proteo | Nettuno | 0.08° |
+| Caronte | Plutone | 0.08° |
 
 ---
 
-## 🚀 Come lanciare
+## 🚀 Avvio
 
-### Prerequisito
-
-Un qualsiasi **server HTTP statico** (i moduli ES non funzionano aprendo il file direttamente con `file://`).
-
-### Opzione 1 - npx (nessuna installazione)
+Serve un server HTTP statico (i moduli ES non funzionano con `file://`).
 
 ```bash
+# Opzione 1 — npx (nessuna installazione)
 npx -y serve . -l 3000
-```
 
-Apri il browser su **http://localhost:3000**
-
-### Opzione 2 - Python
-
-```bash
+# Opzione 2 — Python
 python -m http.server 3000
 ```
 
-### Opzione 3 - VS Code
-
-Installa l'estensione **Live Server** e clicca "Go Live" in basso a destra.
+Apri **http://localhost:3000** nel browser.
 
 ---
 
-## 📁 Struttura del progetto
+## 📁 Struttura
 
 ```
 solar-system/
-  ├── index.html     ← Entry point, import map Three.js via CDN
-  ├── style.css      ← Reset, canvas fullscreen, loader minimale
-  ├── main.js        ← Tutta la logica Three.js (~600 righe, documentato)
-  └── README.md
+├── index.html          Entry point, import map Three.js via CDN
+├── style.css           Layout fullscreen, loader, UI
+├── main.js             Orchestratore: scene, animation loop, debug GUI
+├── planets.js          Pianeti, lune, atmosfere, shader, fasce asteroidi
+├── sun.js              Sole: shader volumetrico + corona multi-layer
+├── starfield.js        12K stelle con scintillio
+├── particles.js        Vento solare + sistema comete
+├── postprocessing.js   Bloom, streak, composite (grain/vignette/aberr.)
+├── textures.js         Generazione texture procedurali
+├── camera-pov.js       Camera POV + menu pianeti
+├── config.js           Parametri tunabili centralizzati
+└── vercel.json         Configurazione deploy Vercel
 ```
-
-Nessuna dipendenza da installare. Nessun bundler. Tutto gira dal browser.
-
----
-
-## 🪐 Cosa contiene
-
-| Feature | Descrizione |
-|---------|-------------|
-| **Sole** | Shader custom con deformazione vertex (ribollimento), distorsione UV animata, effetto Fresnel al bordo |
-| **Corona solare** | Sfera `BackSide` trasparente con glow Fresnel + flicker temporale |
-| **8 pianeti** | Texture procedurali (rumore sinusoidale HSL), rotazione assiale, orbita circolare |
-| **Atmosfere** | Fresnel shader su Terra, Venere, Marte, Urano, Nettuno |
-| **Anelli** | Saturno e Urano - texture a bande procedurali con remapping UV radiale |
-| **Lune** | Terra (Luna), Giove (4 galileiane), Saturno (Titano, Rea) |
-| **Fascia asteroidi** | 1500 particelle distribuite in un toro tra Marte e Giove |
-| **Starfield** | 12.000 stelle con distribuzione sferica uniforme e scintillio shader |
-| **Bloom** | UnrealBloomPass - god rays dal sole, threshold 0.4 |
-| **Vignette** | Scurimento ai bordi dello schermo (dist² × 0.85) |
-| **Aberrazione cromatica** | Separazione R/G/B proporzionale alla distanza dal centro |
-| **ACES tone mapping** | Curva cinematografica per neri profondi e highlight morbidi |
-| **Label HTML** | Nomi dei pianeti proiettati 3D → 2D con opacità adattiva |
-| **Controlli** | OrbitControls con damping inerziale e auto-rotazione |
-| **Loader** | Barra di progresso minimale 0→100% durante l'inizializzazione |
-
----
-
-## 🔬 Formule matematiche principali
-
-Il codice è documentato in italiano per ogni formula. Ecco un riepilogo:
-
-### Distribuzione uniforme sulla sfera (starfield)
-
-```
-θ = random() · 2π
-φ = acos(2 · random() − 1)
-x = r · sin(φ) · cos(θ)
-y = r · sin(φ) · sin(θ)
-z = r · cos(φ)
-```
-
-`acos(2·rand−1)` inverte la CDF di cos(φ), garantendo densità uniforme sulla superficie invece di concentrarsi ai poli.
-
-### Effetto Fresnel (atmosfere, corona)
-
-```
-intensity = pow(k − dot(N, V), esponente)
-```
-
-`dot(N, V) ≈ 1` al centro del disco, `≈ 0` ai bordi. Invertendo e alzando a potenza si ottiene un alone concentrato sul bordo, simulando la diffusione atmosferica.
-
-### Orbita circolare
-
-```
-angle += speed · dt
-x = cos(angle) · raggio
-z = sin(angle) · raggio
-```
-
-Parametrizzazione standard del cerchio. L'incremento angolare è proporzionale alla velocità orbitale.
-
-### Bloom (UnrealBloomPass)
-
-Threshold → blur gaussiano multi-risoluzione → composizione additiva. Solo i pixel con luminanza > 0.4 generano il glow.
-
-### Aberrazione cromatica
-
-```
-R = texture(uv + offset)
-G = texture(uv)
-B = texture(uv − offset)
-offset = (uv − 0.5) · 0.0012
-```
-
-I tre canali vengono letti a coordinate leggermente diverse, separando i colori ai bordi.
 
 ---
 
@@ -127,32 +113,22 @@ I tre canali vengono letti a coordinate leggermente diverse, separando i colori 
 
 | Azione | Input |
 |--------|-------|
-| **Ruota** | Click sinistro + trascina |
-| **Pan** | Click destro + trascina |
-| **Zoom** | Rotella del mouse |
-
-La scena ruota automaticamente molto lentamente (0.15 °/s).
+| Ruota | Click sinistro + trascina |
+| Pan | Click destro + trascina |
+| Zoom | Rotella del mouse |
+| Camera su pianeta | Click nel menu laterale |
 
 ---
 
-## 🛠 Personalizzazione
+## � Note tecniche
 
-Per aggiungere un pianeta, basta una chiamata ad `addPlanet()` in `main.js`:
-
-```js
-addPlanet({
-  name: 'Pluto',
-  radius: 0.3,
-  orbitR: 80,
-  speed: 0.004,
-  rotSpeed: 0.008,
-  hsl: [30, 15, 45],
-  hasAtmo: false
-});
-```
+- **Orbite inclinate** — Ogni pianeta si muove su un piano orbitale inclinato rispetto all'eclittica usando una rotazione attorno all'asse X: `y = sin(θ) · sin(i) · r`, `z = sin(θ) · cos(i) · r`
+- **Fresnel atmosferico** — `intensity = pow(1 − dot(N, V), esponente)` concentra l'alone ai bordi del disco
+- **Distribuzione uniforme sfera** (starfield) — `φ = acos(2·rand − 1)` inverte la CDF per densità uniforme
+- **Fasce asteroidi** — Particelle 2D (`THREE.Points`) con `sizeAttenuation` e `depthWrite: false` per massima performance
 
 ---
 
 ## 📜 Licenza
 
-Progetto dimostrativo. Three.js è rilasciata sotto licenza MIT.
+Progetto dimostrativo. Three.js è rilasciata sotto [licenza MIT](https://github.com/mrdoob/three.js/blob/dev/LICENSE).

@@ -1,7 +1,13 @@
 /**
  * planets.js – Factory pianeti con shader cinematografici
  *
- * Novità:
+ * Novità v2:
+ *   - Proporzioni corrette dei raggi planetari (scala relativa Terra = 1.0)
+ *   - Inclinazioni assiali realistiche per ogni pianeta
+ *   - Inclinazioni orbitali realistiche rispetto all'eclittica
+ *   - Lune con inclinazione orbitale rispetto al pianeta ospite
+ *   - Lune aggiuntive: Phobos, Deimos, Rhea, Miranda, Ariel, Tritone, Proteo
+ *   - Fascia principale asteroidi (Marte → Giove) + Fascia di Kuiper (oltre Nettuno)
  *   - Giove: shader con bande atmosferiche + Grande Macchia Rossa
  *   - Saturno: shader a bande + anello iconico multi-banda luminoso
  *   - Tutti i pianeti hanno emissive fill (lato ombra visibile)
@@ -11,14 +17,20 @@ import * as THREE from 'three';
 import { planetTexture, generateTexture } from './textures.js';
 
 const TAU = Math.PI * 2;
+const DEG2RAD = Math.PI / 180;
 export const planets = [];
 
-/* ── Tracce orbitali ── */
-function createOrbitLine(scene, radius) {
+/* ── Tracce orbitali (con supporto inclinazione) ── */
+function createOrbitLine(scene, radius, inclination = 0) {
     const pts = [];
     for (let i = 0; i <= 128; i++) {
         const a = (i / 128) * TAU;
-        pts.push(new THREE.Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius));
+        const x = Math.cos(a) * radius;
+        const z = Math.sin(a) * radius;
+        // Applica inclinazione orbitale (rotazione attorno all'asse X)
+        const y = z * Math.sin(inclination);
+        const zr = z * Math.cos(inclination);
+        pts.push(new THREE.Vector3(x, y, zr));
     }
     scene.add(new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
@@ -67,7 +79,7 @@ function createAtmosphere(radius, color) {
    - Trasformazione normali (normalMatrix)
    - PBR lighting con la PointLight del sole
    - Shadow fill tramite il parametro `emissive`
-   
+
    emissiveIntensity basso (0.08) garantisce che il lato in ombra
    non sia completamente nero ma visivamente distinguibile.
 */
@@ -219,7 +231,7 @@ function createSaturnRing(innerR, outerR) {
         uniforms: {
             uSunPos: { value: new THREE.Vector3(0, 0, 0) },
             uPlanetPos: { value: new THREE.Vector3(0, 0, 0) },
-            uPlanetRadius: { value: 2.2 }
+            uPlanetRadius: { value: 2.3 }
         },
         transparent: true,
         side: THREE.DoubleSide,
@@ -457,6 +469,7 @@ function smoothstepJS(edge0, edge1, x) {
 function addPlanet(scene, cfg) {
     const {
         name, radius, orbitR, speed, rotSpeed, hsl, tilt = 0,
+        orbitalInclination = 0,
         atmoColor, hasRing, ringInner, ringOuter, ringColor, ringOpacity,
         moons = [], dotColor, customMaterial, isSaturnRing
     } = cfg;
@@ -489,7 +502,7 @@ function addPlanet(scene, cfg) {
     }
 
     mesh.rotation.z = tilt;
-    createOrbitLine(scene, orbitR);
+    createOrbitLine(scene, orbitR, orbitalInclination);
 
     // Lune
     const moonMeshes = moons.map(m => {
@@ -503,92 +516,258 @@ function addPlanet(scene, cfg) {
             })
         );
         group.add(mMesh);
-        return { mesh: mMesh, orbitR: m.orbitR, speed: m.speed, name: m.name || 'Moon', radius: m.radius };
+        return {
+            mesh: mMesh,
+            orbitR: m.orbitR,
+            speed: m.speed,
+            name: m.name || 'Moon',
+            radius: m.radius,
+            orbitalInclination: m.orbitalInclination || 0
+        };
     });
 
     scene.add(group);
     planets.push({
         name, group, mesh, orbitR, speed, rotSpeed, moonMeshes, radius,
         angle: Math.random() * TAU, dotColor: dotColor || '#aaa',
-        hasCustomShader: !!customMaterial
+        hasCustomShader: !!customMaterial,
+        orbitalInclination
     });
 }
 
 /* ══════════════════════════════════════════════════════════════
-   DATI PIANETI
+   DATI PIANETI – Proporzioni e inclinazioni realistiche
+   ══════════════════════════════════════════════════════════════
+   Raggi: scala relativa (Terra = 1.0)
+   Tilt: inclinazione assiale in radianti
+   orbitalInclination: inclinazione piano orbitale rispetto all'eclittica (rad)
+   
+   I giganti gassosi sono compressi per leggibilità:
+   reale Giove=11.2, Saturno=9.45, Urano=4.0, Nettuno=3.88
    ══════════════════════════════════════════════════════════════ */
 export function initPlanets(scene) {
+    // ── Mercurio ──
     addPlanet(scene, {
-        name: 'Mercurio', radius: 0.35, orbitR: 8, speed: 4.15, rotSpeed: 0.004,
-        hsl: [30, 20, 50], dotColor: '#a8937e', atmoColor: '#aa8866'
+        name: 'Mercurio', radius: 0.38, orbitR: 8, speed: 4.15, rotSpeed: 0.004,
+        hsl: [30, 20, 50], dotColor: '#a8937e', atmoColor: '#aa8866',
+        tilt: 0.001,                         // ~0.03°
+        orbitalInclination: 7.0 * DEG2RAD    // 7.0°
     });
 
+    // ── Venere ──
     addPlanet(scene, {
-        name: 'Venere', radius: 0.85, orbitR: 13, speed: 1.62, rotSpeed: -0.002,
-        hsl: [40, 50, 65], dotColor: '#e8c56d', atmoColor: '#ffcc66'
+        name: 'Venere', radius: 0.95, orbitR: 13, speed: 1.62, rotSpeed: -0.002,
+        hsl: [40, 50, 65], dotColor: '#e8c56d', atmoColor: '#ffcc66',
+        tilt: 3.096,                         // 177.4° (rotazione retrograda)
+        orbitalInclination: 3.4 * DEG2RAD    // 3.4°
     });
 
+    // ── Terra ──
+    // Luna: r=1737km (0.27×Terra), orbita 384400km (60×rTerra, compressa per visibilità)
     addPlanet(scene, {
         name: 'Terra', radius: 1.0, orbitR: 18, speed: 1.0, rotSpeed: 0.01,
         hsl: [210, 60, 45], dotColor: '#4a90d9', atmoColor: '#4499ff',
-        moons: [{ name: 'Luna', radius: 0.25, orbitR: 2.0, speed: 3.0, color: 0xbbbbbb }]
+        tilt: 0.409,                         // 23.44°
+        orbitalInclination: 0,               // Riferimento eclittica
+        moons: [{
+            name: 'Luna', radius: 0.15, orbitR: 2.5, speed: 3.0, color: 0xbbbbbb,
+            orbitalInclination: 5.15 * DEG2RAD   // 5.15°
+        }]
     });
 
+    // ── Marte ──
+    // Phobos: r=11km (~0.003×Marte) — minimo 0.04 per visibilità
+    // Deimos: r=6km (~0.002×Marte) — minimo 0.03 per visibilità
+    // Orbite: Phobos 9376km (2.8×rMarte), Deimos 23460km (6.9×rMarte) → ratio 1:2.5
     addPlanet(scene, {
-        name: 'Marte', radius: 0.5, orbitR: 25, speed: 0.53, rotSpeed: 0.009,
-        hsl: [10, 65, 42], dotColor: '#c1440e', atmoColor: '#dd6633'
+        name: 'Marte', radius: 0.53, orbitR: 25, speed: 0.53, rotSpeed: 0.009,
+        hsl: [10, 65, 42], dotColor: '#c1440e', atmoColor: '#dd6633',
+        tilt: 0.440,                         // 25.19°
+        orbitalInclination: 1.85 * DEG2RAD,  // 1.85°
+        moons: [
+            {
+                name: 'Phobos', radius: 0.04, orbitR: 1.0, speed: 5.0, color: 0x998877,
+                orbitalInclination: 1.08 * DEG2RAD
+            },
+            {
+                name: 'Deimos', radius: 0.03, orbitR: 2.5, speed: 3.0, color: 0x887766,
+                orbitalInclination: 1.79 * DEG2RAD
+            }
+        ]
     });
 
+    // ── Giove ──
+    // Raggi reali: Io 1822km, Europa 1561km, Ganimede 2634km (il più grande!), Callisto 2411km
+    // Scala: Ganimede = 0.30, poi proporzionale
+    // Orbite reali: Io 422k, Europa 671k, Ganimede 1070k, Callisto 1883k → ratio 1:1.59:2.54:4.47
     addPlanet(scene, {
         name: 'Giove', radius: 2.8, orbitR: 45, speed: 0.084, rotSpeed: 0.02,
         dotColor: '#c88b3a', atmoColor: '#ddaa55', customMaterial: createJupiterMaterial(),
+        tilt: 0.055,                         // 3.13°
+        orbitalInclination: 1.31 * DEG2RAD,  // 1.31°
         moons: [
-            { name: 'Io', radius: 0.2, orbitR: 4.5, speed: 2.5, color: 0xeeddaa },
-            { name: 'Europa', radius: 0.25, orbitR: 5.5, speed: 1.8, color: 0xaabbcc },
-            { name: 'Ganymede', radius: 0.18, orbitR: 6.5, speed: 1.2, color: 0xccbbaa },
-            { name: 'Callisto', radius: 0.3, orbitR: 8.0, speed: 0.8, color: 0xddccbb }
+            {
+                name: 'Io', radius: 0.21, orbitR: 4.5, speed: 2.5, color: 0xeeddaa,
+                orbitalInclination: 0.04 * DEG2RAD    // r=1822km → 0.21
+            },
+            {
+                name: 'Europa', radius: 0.18, orbitR: 7.0, speed: 1.8, color: 0xaabbcc,
+                orbitalInclination: 0.47 * DEG2RAD    // r=1561km → 0.18
+            },
+            {
+                name: 'Ganimede', radius: 0.30, orbitR: 11.5, speed: 1.0, color: 0xccbbaa,
+                orbitalInclination: 0.18 * DEG2RAD    // r=2634km → 0.30 (il più grande!)
+            },
+            {
+                name: 'Callisto', radius: 0.27, orbitR: 18.0, speed: 0.6, color: 0xddccbb,
+                orbitalInclination: 0.19 * DEG2RAD    // r=2411km → 0.27
+            }
         ]
     });
 
+    // ── Saturno ──
+    // Raggi reali: Encelado 252km, Rhea 764km, Titano 2575km
+    // Scala: Titano = 0.35, Rhea = 0.10, Encelado = 0.05 (minimo visibilità)
+    // Orbite reali: Encelado 238k, Rhea 527k, Titano 1222k → ratio 1:2.2:5.1
+    // ORDINE: Encelado (più vicino) → Rhea → Titano (più lontano)
     addPlanet(scene, {
-        name: 'Saturno', radius: 2.2, orbitR: 70, speed: 0.034, rotSpeed: 0.018,
-        dotColor: '#d4b87a', atmoColor: '#ccaa66', tilt: 0.46,
+        name: 'Saturno', radius: 2.3, orbitR: 70, speed: 0.034, rotSpeed: 0.018,
+        dotColor: '#d4b87a', atmoColor: '#ccaa66',
+        tilt: 0.467,                         // 26.73°
+        orbitalInclination: 2.49 * DEG2RAD,  // 2.49°
         customMaterial: createSaturnMaterial(),
-        isSaturnRing: true, ringInner: 2.8, ringOuter: 8.0,
+        isSaturnRing: true, ringInner: 2.9, ringOuter: 8.2,
         moons: [
-            { name: 'Titan', radius: 0.35, orbitR: 7.5, speed: 1.6, color: 0xeeddcc },
-            { name: 'Enceladus', radius: 0.15, orbitR: 8.5, speed: 2.2, color: 0xaabbaa }
+            {
+                name: 'Encelado', radius: 0.05, orbitR: 4.5, speed: 3.2, color: 0xccddee,
+                orbitalInclination: 0.02 * DEG2RAD    // r=252km → 0.05 (il più vicino, il più veloce)
+            },
+            {
+                name: 'Rhea', radius: 0.10, orbitR: 10.0, speed: 1.5, color: 0xbbbbcc,
+                orbitalInclination: 0.35 * DEG2RAD    // r=764km → 0.10
+            },
+            {
+                name: 'Titano', radius: 0.35, orbitR: 16.0, speed: 0.8, color: 0xeeddcc,
+                orbitalInclination: 0.33 * DEG2RAD    // r=2575km → 0.35 (il più lontano, il più lento)
+            }
         ]
     });
 
+    // ── Urano ──
+    // Raggi reali: Miranda 236km, Ariel 579km → ratio 1:2.45
+    // Orbite reali: Miranda 129k, Ariel 191k → ratio 1:1.48
     addPlanet(scene, {
         name: 'Urano', radius: 1.5, orbitR: 100, speed: 0.012, rotSpeed: 0.012,
-        hsl: [180, 45, 60], dotColor: '#7ec8e3', atmoColor: '#66cccc', tilt: 1.71,
-        hasRing: true, ringInner: 2.0, ringOuter: 3.5, ringColor: [150, 200, 220], ringOpacity: 0.4
+        hsl: [180, 45, 60], dotColor: '#7ec8e3', atmoColor: '#66cccc',
+        tilt: 1.707,                         // 97.77° (quasi sdraiato)
+        orbitalInclination: 0.77 * DEG2RAD,  // 0.77°
+        hasRing: true, ringInner: 2.0, ringOuter: 3.5, ringColor: [150, 200, 220], ringOpacity: 0.4,
+        moons: [
+            {
+                name: 'Miranda', radius: 0.07, orbitR: 3.5, speed: 2.5, color: 0xaabbbb,
+                orbitalInclination: 4.34 * DEG2RAD    // r=236km → 0.07
+            },
+            {
+                name: 'Ariel', radius: 0.16, orbitR: 5.2, speed: 1.8, color: 0xbbcccc,
+                orbitalInclination: 0.04 * DEG2RAD    // r=579km → 0.16
+            }
+        ]
     });
 
+    // ── Nettuno ──
+    // Raggi reali: Proteo 210km, Tritone 1353km → ratio 1:6.4
+    // Orbite reali: Proteo 118k, Tritone 355k → ratio 1:3.0
     addPlanet(scene, {
         name: 'Nettuno', radius: 1.4, orbitR: 130, speed: 0.006, rotSpeed: 0.011,
-        hsl: [220, 60, 45], dotColor: '#3366ff', atmoColor: '#3366ff'
+        hsl: [220, 60, 45], dotColor: '#3366ff', atmoColor: '#3366ff',
+        tilt: 0.494,                         // 28.32°
+        orbitalInclination: 1.77 * DEG2RAD,  // 1.77°
+        moons: [
+            {
+                name: 'Proteo', radius: 0.05, orbitR: 3.0, speed: 3.5, color: 0x999999,
+                orbitalInclination: 0.08 * DEG2RAD    // r=210km → 0.05 (più vicino, più veloce)
+            },
+            {
+                name: 'Tritone', radius: 0.22, orbitR: 9.0, speed: -1.2, color: 0xccbbdd,
+                orbitalInclination: 156.8 * DEG2RAD   // r=1353km → 0.22 (retrogrado!)
+            }
+        ]
+    });
+
+    // ── Plutone (pianeta nano) ──
+    // Caronte: r=606km (0.51×Plutone!), orbita 19591km (16.5×rPlutone)
+    addPlanet(scene, {
+        name: 'Plutone', radius: 0.18, orbitR: 160, speed: 0.002, rotSpeed: -0.005,
+        hsl: [25, 20, 55], dotColor: '#c4a882', atmoColor: '#bbaa88',
+        tilt: 2.087,                          // 119.59° (rotazione retrograda)
+        orbitalInclination: 17.16 * DEG2RAD,  // 17.16° — molto inclinato!
+        moons: [{
+            name: 'Caronte', radius: 0.09, orbitR: 2.8, speed: 1.5, color: 0xaaaaaa,
+            orbitalInclination: 0.08 * DEG2RAD    // r=606km → 0.09 (~metà di Plutone)
+        }]
     });
 }
 
-/* ── Fascia asteroidi ── */
-export function createAsteroidBelt(scene) {
-    const count = 1500;
+/* ══════════════════════════════════════════════════════════════
+   FASCE ASTEROIDI – particelle 2D performanti
+   ══════════════════════════════════════════════════════════════ */
+
+/**
+ * Crea una fascia di asteroidi (Points) con parametri configurabili.
+ * @param {THREE.Scene} scene
+ * @param {Object} opts
+ * @param {number} opts.count       – numero particelle
+ * @param {number} opts.radiusMin   – raggio minimo dal centro
+ * @param {number} opts.radiusMax   – raggio massimo dal centro
+ * @param {number} opts.heightSpread– escursione verticale (±)
+ * @param {number} opts.color       – colore hex
+ * @param {number} opts.size        – dimensione particella
+ * @param {number} opts.opacity     – opacità
+ * @returns {THREE.Points}
+ */
+function createBelt(scene, opts) {
+    const { count, radiusMin, radiusMax, heightSpread, color, size, opacity } = opts;
     const pos = new Float32Array(count * 3);
+    const spread = radiusMax - radiusMin;
     for (let i = 0; i < count; i++) {
-        const a = Math.random() * TAU, r = 33 + Math.random() * 6;
+        const a = Math.random() * TAU;
+        const r = radiusMin + Math.random() * spread;
         pos[i * 3] = Math.cos(a) * r;
-        pos[i * 3 + 1] = (Math.random() - .5) * .8;
+        pos[i * 3 + 1] = (Math.random() - 0.5) * heightSpread;
         pos[i * 3 + 2] = Math.sin(a) * r;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const belt = new THREE.Points(geo, new THREE.PointsMaterial({
-        color: 0x887766, size: 0.12, transparent: true, opacity: 0.5,
+        color, size, transparent: true, opacity,
         sizeAttenuation: true, depthWrite: false
     }));
     scene.add(belt);
     return belt;
+}
+
+/* ── Fascia principale (Marte ↔ Giove) ── */
+export function createAsteroidBelt(scene) {
+    return createBelt(scene, {
+        count: 1500,
+        radiusMin: 30,
+        radiusMax: 40,
+        heightSpread: 0.8,
+        color: 0x887766,
+        size: 0.12,
+        opacity: 0.5
+    });
+}
+
+/* ── Fascia di Kuiper (oltre Nettuno) ── */
+export function createKuiperBelt(scene) {
+    return createBelt(scene, {
+        count: 2000,
+        radiusMin: 140,
+        radiusMax: 200,
+        heightSpread: 3.0,
+        color: 0x8899aa,
+        size: 0.08,
+        opacity: 0.35
+    });
 }
