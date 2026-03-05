@@ -87,3 +87,122 @@ export function createStarfield(scene) {
   scene.add(new THREE.Points(geo, mat));
   return mat;
 }
+
+export function createMilkyWay(scene) {
+  // Sfera gigante che fa da vero e proprio "background" stellare profondo
+  const geo = new THREE.SphereGeometry(4500, 64, 64);
+
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,       // Renderizza l'interno della sfera
+    transparent: true,          // Permette di fondersi con il background della scena
+    depthWrite: false,          // Non deve coprire i pianeti o le particelle
+    uniforms: {
+      uTime: { value: 0 }
+    },
+    vertexShader: `
+      varying vec3 vPos;
+      void main() {
+        vPos = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vPos;
+      uniform float uTime;
+
+      // Un semplice hash 3D per generare il rumore procedurale
+      float hash(vec3 p) {
+        p = fract(p * 0.3183099 + 0.1);
+        p *= 17.0;
+        return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+      }
+
+      // Value noise 3D di base
+      float noise(vec3 x) {
+        vec3 i = floor(x);
+        vec3 f = fract(x);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+                       mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                   mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                       mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+      }
+
+      // Fractional Brownian Motion (fbm) per dettagli a piú ottave (le "nubi")
+      float fbm(vec3 p) {
+        float f = 0.0;
+        float amp = 0.5;
+        for(int i = 0; i < 4; i++) {
+          f += amp * noise(p);
+          p *= 2.0;
+          amp *= 0.5;
+        }
+        return f;
+      }
+
+      void main() {
+        vec3 dir = normalize(vPos);
+        
+        // 1. Inclinazione realistica rispetto all'eclittica del sistema solare (~60 gradi)
+        float angle = 1.05; // ~60 gradi in radianti
+        float s = sin(angle), c = cos(angle);
+        // Ruotiamo la direzione asse Z attorno all'asse X
+        vec3 rotDir = vec3(dir.x, dir.y * c - dir.z * s, dir.y * s + dir.z * c);
+
+        // 2. Banda galattica - Molto morbida, senza margini netti
+        float distFromEquator = abs(rotDir.y);
+        float bandBase = smoothstep(0.45, 0.0, distFromEquator); // Halo diafano primario
+        float bandCore = smoothstep(0.15, 0.0, distFromEquator); // Nube centrale densa
+        float band = bandBase * 0.6 + bandCore * 0.4;
+        
+        // 3. Modulazione delle Nubi Stellari (gas e miliardi di stelle irrisolte)
+        float n1 = fbm(rotDir * 3.5);
+        float n2 = fbm(rotDir * 12.0);
+        
+        // Moltiplichiamo il disturbo per la banda per mantenerlo nel "disco"
+        float starlight = (n1 * 0.6 + n2 * 0.4) * band;
+        starlight = smoothstep(0.15, 0.8, starlight); // Aumenta contrasto tenue
+
+        // 4. Polveri Oscure (Dust Lanes) - Rami oscuri complessi
+        float dust = fbm(rotDir * 6.0 + vec3(1.2, 3.4, 5.6));
+        float dustMask = smoothstep(0.35, 0.65, dust);
+        
+        // Le polveri erodono la luce stellare principalmente nel core
+        starlight *= (1.0 - dustMask * 0.85 * bandCore);
+
+        // 5. Palette Colori Realistica Cosmica! Niente giallo o nero piatto
+        // Sfumature: Spazio infinito bluastro -> Argento-Bluastro -> Bianco Opale
+        vec3 colorEdge = vec3(0.02, 0.03, 0.05); // Bordo appena distinguibile
+        vec3 colorMid = vec3(0.08, 0.12, 0.18);  // Corpo galattico silver-blu
+        vec3 colorCore = vec3(0.22, 0.28, 0.35); // Core luminoso
+        
+        vec3 finalColor = mix(colorEdge, colorMid, starlight);
+        finalColor = mix(finalColor, colorCore, pow(starlight, 2.0));
+        
+        // Cuore lievemente più caldo e dorato/crema ma *molto* delicato
+        finalColor += vec3(0.15, 0.12, 0.08) * smoothstep(0.7, 1.0, starlight);
+
+        // 6. Micro-stelle finissime aggiunte sopra il gas
+        float starNoise = hash(rotDir * 600.0);
+        float tinyStars = step(0.997, starNoise) * bandBase;
+        finalColor += tinyStars * vec3(0.6, 0.7, 1.0) * (1.0 - dustMask);
+
+        // 7. Alpha (trasparenza)
+        float alpha = starlight * 0.7 + tinyStars * 0.5;
+        alpha = clamp(alpha, 0.0, 1.0);
+        
+        gl_FragColor = vec4(finalColor, alpha);
+      }
+    `
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+
+  // CRITICO: Forza the render engine a disegnare questa sfera gigantesca PER PRIMA.
+  // Essendo transparente, eviterà di alterare i calcoli di fusione colore dei pianeti.
+  mesh.renderOrder = -99;
+
+  scene.add(mesh);
+
+  return { mesh, mat };
+}
