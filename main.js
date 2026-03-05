@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import GUI from 'lil-gui';
 import CONFIG from './config.js';
-import { createStarfield } from './starfield.js';
+import { createStarfield, createMilkyWay } from './starfield.js';
 import { createSun } from './sun.js';
 import { planets, initPlanets, createAsteroidBelt, createKuiperBelt } from './planets.js';
 import { initPostProcessing } from './postprocessing.js';
@@ -45,6 +45,17 @@ controls.minDistance = 8;
 controls.maxDistance = 500;
 controls.autoRotate = CONFIG.camera.autoRotate;
 controls.autoRotateSpeed = CONFIG.camera.autoRotateSpeed;
+controls.enableZoom = false; // Disabilita lo zoom a scatti nativo
+
+/* ── Custom Smooth Zoom ── */
+let targetZoomDistance = camera.position.distanceTo(controls.target);
+
+window.addEventListener('wheel', (event) => {
+    if (!controls.enabled) return;
+    const zoomSpeed = targetZoomDistance * 0.002; // Sensibilità logaritmica scalata in base alla distanza
+    targetZoomDistance += event.deltaY * zoomSpeed;
+    targetZoomDistance = THREE.MathUtils.clamp(targetZoomDistance, controls.minDistance, controls.maxDistance);
+}, { passive: true });
 
 /* ── Ambient ── */
 scene.add(new THREE.AmbientLight(0x0a0a1a, 0.4));
@@ -52,6 +63,7 @@ setProgress(15);
 
 /* ── Init moduli ── */
 const starMaterial = createStarfield(scene);
+const milkyWay = createMilkyWay(scene);
 // Riferimento ai punti stelle per toggle visibilità
 const starPoints = scene.children.find(c => c.isPoints && c.material === starMaterial);
 setProgress(25);
@@ -510,6 +522,7 @@ function animate() {
 
     // Stelle
     starMaterial.uniforms.uTime.value = t * starParams.twinkleSpeed;
+    milkyWay.mat.uniforms.uTime.value = t;
 
     // Pianeti
     planets.forEach(p => {
@@ -566,6 +579,21 @@ function animate() {
 
     // Camera POV
     updateCameraPOV(camera, controls);
+
+    // Custom Smooth Zoom (quando in orbita)
+    if (controls.enabled) {
+        const currentDist = camera.position.distanceTo(controls.target);
+        // Lerp esponenziale per fermata morbida ("smooth scroll")
+        const newDist = THREE.MathUtils.lerp(currentDist, targetZoomDistance, 0.08);
+        const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
+        if (offset.lengthSq() > 0.001) {
+            offset.normalize().multiplyScalar(newDist);
+            camera.position.copy(controls.target).add(offset);
+        }
+    } else {
+        // Tieni sincronizzato lo zoom target durante POV guidato o la transizione di ritorno
+        targetZoomDistance = camera.position.distanceTo(controls.target);
+    }
 
     // Post-processing time
     compositePass.uniforms.uTime.value = t;
